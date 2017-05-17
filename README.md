@@ -9,7 +9,7 @@ python learn.py -t dataset/train
 ## Testing the Classifier
 * Testing a single image
 ```
-python predict.py -t dataset/test/class/image.extension -- visualize
+python predict.py -t dataset/test/class/image.extension --visualize
 ```
 
 * Testing a testing dataset
