@@ -2,10 +2,12 @@ import argparse as ap
 import cv2
 import imutils
 import numpy as np
-import os
+import os, time
 from sklearn.svm import LinearSVC
 from sklearn.externals import joblib
 from scipy.cluster.vq import *
+
+start_time = time.time()
 
 # Load the classifier, class names, scaler, number of clusters and vocabulary
 clf, classes_names, stdSlr, k, voc = joblib.load("bof.pkl")
@@ -19,6 +21,7 @@ parser.add_argument('-v',"--visualize", action='store_true')
 args = vars(parser.parse_args())
 
 # Get the path of the testing image(s) and store them in a list
+print("Carregando imagens")
 image_paths = []
 if args["testingSet"]:
     test_path = args["testingSet"]
@@ -34,9 +37,11 @@ if args["testingSet"]:
 else:
     image_paths = [args["image"]]
 
+#raise SystemExit(0)
 # Create feature extraction and keypoint detector objects
 #fea_det = cv2.FeatureDetector_create("SIFT")
 #des_ext = cv2.DescriptorExtractor_create("SIFT")
+print("Extraindo caracteristicas")
 sift = cv2.xfeatures2d.SIFT_create()
 
 # List where all the descriptors are stored
@@ -44,7 +49,7 @@ des_list = []
 
 for image_path in image_paths:
     im = cv2.imread(image_path)
-    if im == None:
+    if im is None:
         print ("No such directory \(test_path)\nCheck if the file exists")
         exit()
     #kpts = fea_det.detect(im)
@@ -57,7 +62,7 @@ descriptors = des_list[0][1]
 for image_path, descriptor in des_list[0:]:
     descriptors = np.vstack((descriptors, descriptor))
 
-#
+print("Criando codebook")
 test_features = np.zeros((len(image_paths), k), "float32")
 for i in range(len(image_paths)):
     words, distance = vq(des_list[i][1],voc)
@@ -72,6 +77,7 @@ idf = np.array(np.log((1.0*len(image_paths)+1) / (1.0*nbr_occurences + 1)), 'flo
 test_features = stdSlr.transform(test_features)
 
 # Perform the predictions
+print("Realizando predições")
 predictions =  [classes_names[i] for i in clf.predict(test_features)]
 
 # Visualize the results, if "visualize" flag set to true by the user
@@ -83,3 +89,19 @@ if args["visualize"]:
         cv2.putText(image, prediction, pt ,cv2.FONT_HERSHEY_SCRIPT_COMPLEX, 2, [0, 255, 0], 2)
         cv2.imshow("Image", image)
         cv2.waitKey(3000)
+else:
+    print("Calculando Acurácia...")
+    total = 0
+    hits = 0
+    errors = 0
+    for image_path, prediction in zip(image_paths, predictions):
+        classe = image_path.split('/')[3]
+        total += 1
+        if prediction == classe:
+            hits += 1
+        else:
+            errors += 1
+    avg = (hits / total) * 100
+    print("Total: {} - Acertos: {} - Erros: {} - Acuracia: {}".format(str(total),str(hits),str(errors), str(avg)))
+
+print("--- %s seconds ---" % (time.time() - start_time))
