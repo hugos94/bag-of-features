@@ -37,7 +37,6 @@ if args["testingSet"]:
 else:
     image_paths = [args["image"]]
 
-#raise SystemExit(0)
 # Create feature extraction and keypoint detector objects
 #fea_det = cv2.FeatureDetector_create("SIFT")
 #des_ext = cv2.DescriptorExtractor_create("SIFT")

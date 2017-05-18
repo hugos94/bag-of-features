@@ -3,10 +3,13 @@ import cv2
 import imutils
 import numpy as np
 import os
+import time
 from sklearn.svm import LinearSVC
 from sklearn.externals import joblib
 from scipy.cluster.vq import *
 from sklearn.preprocessing import StandardScaler
+
+start_time = time.time()
 
 # EXTENSIONS = [".jpg", ".bmp", ".png", ".pgm", ".tif", ".tiff"]
 
@@ -25,6 +28,8 @@ image_paths = []
 image_classes = []
 class_id = 0
 
+print("Carregando imagens")
+
 for training_name in training_names:
     dir = os.path.join(train_path, training_name) # Training directories
     class_path = imutils.imlist(dir)
@@ -36,6 +41,8 @@ for training_name in training_names:
 
 #fea_det = cv2.FeatureDetector_create("SIFT")
 #des_ext = cv2.DescriptorExtractor_create("SIFT")
+
+print("Extraindo caracteristicas")
 
 sift = cv2.xfeatures2d.SIFT_create()
 
@@ -54,6 +61,8 @@ descriptors = des_list[0][1]
 for image_path, descriptor in des_list[1:]:
     descriptors = np.vstack((descriptors,descriptor))
 
+print("Clusterizando caracteristicas")
+
 #K-means
 k = 100
 voc, variance = kmeans(descriptors, k, 1)
@@ -70,7 +79,13 @@ idf = np.array(np.log((1.0*len(image_paths)+1) / (1.0*nbr_ocurrences + 1)), 'flo
 stdSlr = StandardScaler().fit(im_features)
 im_features = stdSlr.transform(im_features)
 
+print("Treinando classificador")
+
 clf = LinearSVC()
 clf.fit(im_features, np.array(image_classes))
 
+print("Salvando classificador")
+
 joblib.dump((clf, training_names, stdSlr, k, voc), "bof.pkl", compress = 3)
+
+print("--- %s seconds ---" % (time.time() - start_time))
