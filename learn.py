@@ -1,9 +1,7 @@
+import cv2, os, time, imutils
 import argparse as ap
-import cv2
-import imutils
 import numpy as np
-import os
-import time
+import logging as log
 from sklearn.svm import LinearSVC
 from sklearn.externals import joblib
 from scipy.cluster.vq import *
@@ -11,15 +9,20 @@ from sklearn.preprocessing import StandardScaler
 
 start_time = time.time()
 
-# EXTENSIONS = [".jpg", ".bmp", ".png", ".pgm", ".tif", ".tiff"]
-
 # Get the path of the training set
 parser = ap.ArgumentParser()
 parser.add_argument("-t", "--trainingSet", help="Path to Training Set", required="True")
-args = vars(parser.parse_args())
+parser.add_argument("-v", "--verbose", help="Increase output verbosity", action="store_true")
+args = parser.parse_args()
+
+if args.verbose:
+    log.basicConfig(format="%(levelname)s: %(message)s", level=log.DEBUG)
+    log.info("Verbose output.")
+else:
+    log.basicConfig(format="%(levelname)s: %(message)s")
 
 # Get the training cllasses names and store them in a list
-train_path = args["trainingSet"]
+train_path = args.trainingSet
 training_names = os.listdir(train_path)
 
 # Get all the path to the images and save them in a list
@@ -28,7 +31,9 @@ image_paths = []
 image_classes = []
 class_id = 0
 
-print("Carregando imagens")
+log.info("Carregando imagens")
+#log.warning()
+#log.error()
 
 for training_name in training_names:
     dir = os.path.join(train_path, training_name) # Training directories
@@ -42,7 +47,7 @@ for training_name in training_names:
 #fea_det = cv2.FeatureDetector_create("SIFT")
 #des_ext = cv2.DescriptorExtractor_create("SIFT")
 
-print("Extraindo caracteristicas")
+log.info("Extraindo caracteristicas")
 
 sift = cv2.xfeatures2d.SIFT_create()
 
@@ -61,7 +66,7 @@ descriptors = des_list[0][1]
 for image_path, descriptor in des_list[1:]:
     descriptors = np.vstack((descriptors,descriptor))
 
-print("Clusterizando caracteristicas")
+log.info("Clusterizando caracteristicas")
 
 #K-means
 k = 100
@@ -79,13 +84,13 @@ idf = np.array(np.log((1.0*len(image_paths)+1) / (1.0*nbr_ocurrences + 1)), 'flo
 stdSlr = StandardScaler().fit(im_features)
 im_features = stdSlr.transform(im_features)
 
-print("Treinando classificador")
+log.info("Treinando classificador")
 
 clf = LinearSVC()
 clf.fit(im_features, np.array(image_classes))
 
-print("Salvando classificador")
+log.info("Salvando classificador")
 
 joblib.dump((clf, training_names, stdSlr, k, voc), "bof.pkl", compress = 3)
 
-print("--- %s seconds ---" % (time.time() - start_time))
+log.info("--- %s seconds ---" % (time.time() - start_time))

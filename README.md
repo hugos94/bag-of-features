@@ -1,9 +1,9 @@
-# Bag Of Features
+# Bag of Features
 
 Python Implementation of Bag of Words for Image Recongnition using OpenCV and sklearn
 
 ## Original author
-This is a fork of [bikz05's](https://github.com/bikz05/bag-of-words) work.
+This is a clean fork of [bikz05's](https://github.com/bikz05/bag-of-words) work.
 
 ## Installation
 
