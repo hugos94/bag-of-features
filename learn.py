@@ -7,6 +7,7 @@ from sklearn.externals import joblib
 from scipy.cluster.vq import *
 from sklearn.preprocessing import StandardScaler
 
+log.info("Algorithm execution time count started")
 start_time = time.time()
 
 # Get the path of the training set
@@ -21,20 +22,17 @@ if args.verbose:
 else:
     log.basicConfig(format="%(levelname)s: %(message)s")
 
-# Get the training cllasses names and store them in a list
+# Get the training classes names and store them in a list
+log.info("Getting the training classes names and store them in a list")
 train_path = args.trainingSet
 training_names = os.listdir(train_path)
 
 # Get all the path to the images and save them in a list
 # image_paths and the corresponding label in image_paths
+log.info("Getting all the path to the images and save them in a list")
 image_paths = []
 image_classes = []
 class_id = 0
-
-log.info("Carregando imagens")
-#log.warning()
-#log.error()
-
 for training_name in training_names:
     dir = os.path.join(train_path, training_name) # Training directories
     class_path = imutils.imlist(dir)
@@ -43,54 +41,55 @@ for training_name in training_names:
     class_id += 1
 
 # Create feature extraction and keypoint detector objects
-
-#fea_det = cv2.FeatureDetector_create("SIFT")
-#des_ext = cv2.DescriptorExtractor_create("SIFT")
-
-log.info("Extraindo caracteristicas")
-
+log.info("Create feature extraction and keypoint detector objects")
 sift = cv2.xfeatures2d.SIFT_create()
 
-# List all descriptors stored
-
+# List where all the descriptors are stored
+log.info("List where all the descriptors are stored")
 des_list = []
-
 for image_path in image_paths:
     im = cv2.imread(image_path)
-    #kpts = fea_det.detect(im)
-    #kpts, des = des_ext.compute(im,kpts)
     (kpts, des) = sift.detectAndCompute(im, None)
     des_list.append((image_path,des))
 
+# Stack all the descriptors vertically in a numpy array
+log.info("Stack all the descriptors vertically in a numpy array")
 descriptors = des_list[0][1]
 for image_path, descriptor in des_list[1:]:
     descriptors = np.vstack((descriptors,descriptor))
 
-log.info("Clusterizando caracteristicas")
-
-#K-means
+# Perform k-means clustering
+log.info("Perform k-means clustering")
 k = 100
 voc, variance = kmeans(descriptors, k, 1)
 
+# Calculate the histogram of features
+log.info("Calculate the histogram of features")
 im_features = np.zeros((len(image_paths), k), "float32")
 for i in range(len(image_paths)):
     words, distance = vq(des_list[i][1], voc)
     for w in words:
         im_features[i][w] += 1
 
+# Perform Tf-Idf vectorization
+log.info("Perform Tf-Idf vectorization")
 nbr_ocurrences = np.sum( (im_features > 0) * 1, axis = 0)
 idf = np.array(np.log((1.0*len(image_paths)+1) / (1.0*nbr_ocurrences + 1)), 'float32')
 
+# Scaling the words
+log.info("Scaling the words")
 stdSlr = StandardScaler().fit(im_features)
 im_features = stdSlr.transform(im_features)
 
-log.info("Treinando classificador")
-
+# Train the Linear SVM
+log.info("Train the Linear SVM")
 clf = LinearSVC()
 clf.fit(im_features, np.array(image_classes))
 
-log.info("Salvando classificador")
-
+# Save the SVM
+log.info("Saving SVM")
 joblib.dump((clf, training_names, stdSlr, k, voc), "bof.pkl", compress = 3)
 
+# Print algorithm execution time in seconds
+log.info("Algorithm execution time count ended")
 log.info("--- %s seconds ---" % (time.time() - start_time))
