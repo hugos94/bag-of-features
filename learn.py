@@ -7,9 +7,6 @@ from sklearn.externals import joblib
 from scipy.cluster.vq import *
 from sklearn.preprocessing import StandardScaler
 
-log.info("Algorithm execution time count started")
-start_time = time.time()
-
 # Get the path of the training set
 parser = ap.ArgumentParser()
 parser.add_argument("-t", "--trainingSet", help="Path to Training Set", required="True")
@@ -21,6 +18,9 @@ if args.verbose:
     log.info("Verbose output.")
 else:
     log.basicConfig(format="%(levelname)s: %(message)s")
+
+log.info("Algorithm execution time count started")
+start_time = time.time()
 
 # Get the training classes names and store them in a list
 log.info("Getting the training classes names and store them in a list")
