@@ -8,14 +8,32 @@ from sklearn.externals import joblib
 from scipy.cluster.vq import *
 from sklearn.preprocessing import StandardScaler
 
+def timing(f):
+    def wrap(*args):
+        time1 = time.time()
+        ret = f(*args)
+        time2 = time.time()
+        print ("{} function took {} ms".format(f.__name__, (time2-time1)*1000.0))
+        return ret
+    return wrap
+
 def detectAndCompute(image_paths):
     des_list = []
     sift = cv2.xfeatures2d.SIFT_create()
     for image_path in image_paths:
         im = cv2.imread(image_path)
-        (kpts, des) = sift.detectAndCompute(im, None)
+        (_, des) = sift.detectAndCompute(im, None)
         des_list.append((image_path,des))
     return des_list
+
+def stackDescriptors(features):
+    # Stack all the descriptors vertically in a numpy array
+    log.info("Stack all the descriptors vertically in a numpy array")
+    descriptors = features[0].pop(0)[1]
+    for feature in features:
+        for _, descriptor in feature:
+            descriptors = np.concatenate((descriptors, descriptor), axis=0)
+    return descriptors
 
 if __name__ == "__main__":
     # Get the path of the training set
@@ -52,8 +70,6 @@ if __name__ == "__main__":
         image_classes += [class_id]*len(class_path)
         class_id += 1
 
-    # Create feature extraction and keypoint detector objects
-    log.info("Create feature extraction and keypoint detector objects")
     cpus = os.cpu_count()
     path_size = len(image_paths)
     path_lists_size = int(len(image_paths)/cpus)
@@ -61,6 +77,8 @@ if __name__ == "__main__":
 
     image_paths_parts = [image_paths[i:i + path_lists_size] for i in range(0, path_size, path_lists_size)]
 
+    # Create feature extraction and keypoint detector objects
+    log.info("Create feature extraction and keypoint detector objects")
     pool = Pool(processes=cpus)
 
     # List where all the descriptors are stored
@@ -68,11 +86,7 @@ if __name__ == "__main__":
     features = pool.map(detectAndCompute, (image_paths_parts))
 
     # Stack all the descriptors vertically in a numpy array
-    log.info("Stack all the descriptors vertically in a numpy array")
-    descriptors = features[0].pop(0)[1]
-    for feature in features:
-        for _, descriptor in feature:
-                descriptors = np.vstack((descriptors, descriptor))
+    descriptors = stackDescriptors(features)
 
     # Perform k-means clustering
     log.info("Perform k-means clustering")
