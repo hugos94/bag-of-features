@@ -18,7 +18,7 @@ Make sure you install the _xfeatures2d_ module to be able to use [SIFT](http://d
 
 ## Training the Classifier
 ```
-python learn.py -t dataset/train
+python learn.py -t dataset/train -c dataset/model
 ```
 ## Testing the Classifier
 * Testing a single image
