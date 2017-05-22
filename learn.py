@@ -1,11 +1,23 @@
 import cv2, os, time, imutils
+
 import argparse as ap
 import numpy as np
 import logging as log
+from multiprocessing import Pool
 from sklearn.svm import LinearSVC
 from sklearn.externals import joblib
 from scipy.cluster.vq import *
 from sklearn.preprocessing import StandardScaler
+
+sift = cv2.xfeatures2d.SIFT_create()
+
+def detectAndCompute(image_paths):
+    des_list = []
+    for image_path in image_paths:
+        im = cv2.imread(image_path)
+        (kpts, des) = sift.detectAndCompute(im, None)
+        des_list.append((image_path,des))
+    return des_list
 
 # Get the path of the training set
 parser = ap.ArgumentParser()
@@ -42,34 +54,61 @@ for training_name in training_names:
 
 # Create feature extraction and keypoint detector objects
 log.info("Create feature extraction and keypoint detector objects")
-sift = cv2.xfeatures2d.SIFT_create()
+#sift = cv2.xfeatures2d.SIFT_create()
+
+cpus = os.cpu_count()
+path_size = len(image_paths)
+path_lists_size = int(len(image_paths)/cpus)
+log.info("Dividing feature extraction between {} cpus".format(cpus))
+
+image_paths_parts = [image_paths[i:i + path_lists_size] for i in range(0, path_size, path_lists_size)]
+
+pool = Pool(processes=cpus)
 
 # List where all the descriptors are stored
 log.info("List where all the descriptors are stored")
 des_list = []
-for image_path in image_paths:
-    im = cv2.imread(image_path)
-    (kpts, des) = sift.detectAndCompute(im, None)
-    des_list.append((image_path,des))
+#for image_path in image_paths:
+#    im = cv2.imread(image_path)
+#    (kpts, des) = sift.detectAndCompute(im, None)
+#    des_list.append((image_path,des))
+
+features = pool.map(detectAndCompute, (image_paths_parts))
+
+descriptors = features[0].pop(0)[1]
+
+for feature in features:
+    for _, descriptor in feature:
+            descriptors = np.vstack((descriptors, descriptor))
+
+#for feature in features:
+#    des_list.append(feature)
 
 # Stack all the descriptors vertically in a numpy array
 log.info("Stack all the descriptors vertically in a numpy array")
-descriptors = des_list[0][1]
-for image_path, descriptor in des_list[1:]:
-    descriptors = np.vstack((descriptors,descriptor))
+#descriptors = des_list[0][1]
+#for image_path, descriptor in des_list[1:]:
+#    descriptors = np.vstack((descriptors,descriptor))
 
 # Perform k-means clustering
 log.info("Perform k-means clustering")
 k = 100
-voc, variance = kmeans(descriptors, k, 1)
+voc, _ = kmeans(descriptors, k, 1)
 
 # Calculate the histogram of features
 log.info("Calculate the histogram of features")
 im_features = np.zeros((len(image_paths), k), "float32")
-for i in range(len(image_paths)):
-    words, distance = vq(des_list[i][1], voc)
-    for w in words:
-        im_features[i][w] += 1
+i = 0
+for feature in features:
+    for image_path, descriptor in feature:
+        words, _ = vq(descriptor, voc)
+        for w in words:
+            im_features[i][w] +=1
+        i += 1
+#for i in range(len(image_paths)):
+#    words, distance = vq(des_list[i][1], voc)
+#    for w in words:
+#        im_features[i][w] += 1
 
 # Perform Tf-Idf vectorization
 log.info("Perform Tf-Idf vectorization")
