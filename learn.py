@@ -1,6 +1,4 @@
-import cv2, os, time, imutils
-import argparse as ap
-import numpy as np
+import cv2, os, time, imutils, argparse, numpy
 import logging as log
 from multiprocessing import Pool
 from sklearn.svm import LinearSVC
@@ -26,22 +24,26 @@ def detectAndCompute(image_paths):
         des_list.append((image_path,des))
     return des_list
 
-def stackDescriptors(features):
+def stack_descriptors(features):
     # Stack all the descriptors vertically in a numpy array
     log.info("Stack all the descriptors vertically in a numpy array")
     descriptors = features[0].pop(0)[1]
     for feature in features:
         for _, descriptor in feature:
-            descriptors = np.concatenate((descriptors, descriptor), axis=0)
+            descriptors = numpy.concatenate((descriptors, descriptor), axis=0)
     return descriptors
 
-if __name__ == "__main__":
+def get_args():
     # Get the path of the training set
-    parser = ap.ArgumentParser()
+    parser = argparse.ArgumentParser()
     parser.add_argument("-t", "--trainingSet", help="Path to Training Set", required="True")
     parser.add_argument("-c", "--classifierModelFile", help="Classifier Model File", required="True")
     parser.add_argument("-v", "--verbose", help="Increase output verbosity", action="store_true")
-    args = parser.parse_args()
+    return parser.parse_args()
+
+if __name__ == "__main__":
+
+    args = get_args()
 
     if args.verbose:
         log.basicConfig(format="%(levelname)s: %(message)s", level=log.DEBUG)
@@ -86,7 +88,7 @@ if __name__ == "__main__":
     features = pool.map(detectAndCompute, (image_paths_parts))
 
     # Stack all the descriptors vertically in a numpy array
-    descriptors = stackDescriptors(features)
+    descriptors = stack_descriptors(features)
 
     # Perform k-means clustering
     log.info("Perform k-means clustering")
@@ -95,7 +97,7 @@ if __name__ == "__main__":
 
     # Calculate the histogram of features
     log.info("Calculate the histogram of features")
-    im_features = np.zeros((len(image_paths), k), "float32")
+    im_features = numpy.zeros((len(image_paths), k), "float32")
     i = 0
     for feature in features:
         for image_path, descriptor in feature:
@@ -106,8 +108,8 @@ if __name__ == "__main__":
 
     # Perform Tf-Idf vectorization
     log.info("Perform Tf-Idf vectorization")
-    nbr_ocurrences = np.sum( (im_features > 0) * 1, axis = 0)
-    idf = np.array(np.log((1.0*len(image_paths)+1) / (1.0*nbr_ocurrences + 1)), 'float32')
+    nbr_ocurrences = numpy.sum( (im_features > 0) * 1, axis = 0)
+    idf = numpy.array(numpy.log((1.0*len(image_paths)+1) / (1.0*nbr_ocurrences + 1)), 'float32')
 
     # Scaling the words
     log.info("Scaling the words")
@@ -117,7 +119,7 @@ if __name__ == "__main__":
     # Train the Linear SVM
     log.info("Train the Linear SVM")
     clf = LinearSVC()
-    clf.fit(im_features, np.array(image_classes))
+    clf.fit(im_features, numpy.array(image_classes))
 
     # Save the SVM
     log.info("Saving SVM")
