@@ -28,7 +28,8 @@ python predict.py -t dataset/test/class/image.extension --visualize
 
 * Testing a testing dataset
 ```
-python predict.py -t dataset/test --visualize
+python predict.py -t ../dataset/test/ -c ../dataset/model -m ../dataset/confusion
+
 ```
 The `--visualize` flag will display the image with the corresponding label printed on the image/
 
