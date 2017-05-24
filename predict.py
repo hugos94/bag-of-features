@@ -1,7 +1,8 @@
-import argparse, cv2, imutils, os, time
-import numpy as np
+import argparse, cv2, imutils, os, time, numpy
+from multiprocessing import Pool
 from sklearn.svm import LinearSVC
 from sklearn.externals import joblib
+from sklearn.metrics import confusion_matrix
 from scipy.cluster.vq import *
 
 def get_args():
@@ -9,10 +10,29 @@ def get_args():
     parser = argparse.ArgumentParser()
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("-t", "--testingSet", help="Path to testing Set")
-    parser.add_argument("-c", "--classifierModelFile", help="Classifier Model File", required="True")
     group.add_argument("-i", "--image", help="Path to image")
+    parser.add_argument("-c", "--classifierModelFile", help="Classifier Model File", required="True")
+    parser.add_argument("-m", "--confusionMatrixName", help="Confusion Matrix Name", required="True")
     parser.add_argument('-v',"--visualize", action='store_true')
     return parser.parse_args()
+
+def detectAndCompute(image_paths):
+    des_list = []
+    sift = cv2.xfeatures2d.SIFT_create()
+    for image_path in image_paths:
+        im = cv2.imread(image_path)
+        (_, des) = sift.detectAndCompute(im, None)
+        des_list.append((image_path,des))
+    return des_list
+
+def stack_descriptors(features):
+    # Stack all the descriptors vertically in a numpy array
+    #log.info("Stack all the descriptors vertically in a numpy array")
+    descriptors = features[0].pop(0)[1]
+    for feature in features:
+        for _, descriptor in feature:
+            descriptors = numpy.concatenate((descriptors, descriptor), axis=0)
+    return descriptors
 
 if __name__ == "__main__":
     start_time = time.time()
@@ -42,37 +62,33 @@ if __name__ == "__main__":
     # Create feature extraction and keypoint detector objects
     #fea_det = cv2.FeatureDetector_create("SIFT")
     #des_ext = cv2.DescriptorExtractor_create("SIFT")
-    print("Extraindo caracteristicas")
-    sift = cv2.xfeatures2d.SIFT_create()
+    cpus = os.cpu_count()
+    path_size = len(image_paths)
+    path_lists_size = int(len(image_paths)/cpus)
+    print("Dividing feature extraction between {} cpus".format(cpus))
 
-    # List where all the descriptors are stored
-    des_list = []
+    image_paths_parts = [image_paths[i:i + path_lists_size] for i in range(0, path_size, path_lists_size)]
 
-    for image_path in image_paths:
-        im = cv2.imread(image_path)
-        if im is None:
-            print ("No such directory \(test_path)\nCheck if the file exists")
-            exit()
-        #kpts = fea_det.detect(im)
-        #kpts, des = des_ext.compute(im, kpts)
-        (kpts, des) = sift.detectAndCompute(im, None)
-        des_list.append((image_path, des))
+    pool = Pool(processes=cpus)
+
+    features = pool.map(detectAndCompute, (image_paths_parts))
 
     # Stack all the descriptors vertically in a numpy array
-    descriptors = des_list[0][1]
-    for image_path, descriptor in des_list[0:]:
-        descriptors = np.vstack((descriptors, descriptor))
+    descriptors = stack_descriptors(features)
 
     print("Criando codebook")
-    test_features = np.zeros((len(image_paths), k), "float32")
-    for i in range(len(image_paths)):
-        words, distance = vq(des_list[i][1],voc)
-        for w in words:
-            test_features[i][w] += 1
+    test_features = numpy.zeros((len(image_paths), k), "float32")
+    i = 0
+    for feature in features:
+        for image_path, descriptor in feature:
+            words, _ = vq(descriptor, voc)
+            for w in words:
+                test_features[i][w] +=1
+            i += 1
 
     # Perform Tf-Idf vectorization
-    nbr_occurences = np.sum( (test_features > 0) * 1, axis = 0)
-    idf = np.array(np.log((1.0*len(image_paths)+1) / (1.0*nbr_occurences + 1)), 'float32')
+    nbr_occurences = numpy.sum( (test_features > 0) * 1, axis = 0)
+    idf = numpy.array(numpy.log((1.0*len(image_paths)+1) / (1.0*nbr_occurences + 1)), 'float32')
 
     # Scale the features
     test_features = stdSlr.transform(test_features)
@@ -95,8 +111,10 @@ if __name__ == "__main__":
         total = 0
         hits = 0
         errors = 0
-        for image_path, prediction in zip(image_paths, predictions):
-            classe = image_path.split('/')[3]
+        for i in range(len(image_paths)):
+            image_paths[i] = image_paths[i].split('/')[3]
+
+        for classe, prediction in zip(image_paths, predictions):
             total += 1
             if prediction == classe:
                 hits += 1
@@ -104,5 +122,9 @@ if __name__ == "__main__":
                 errors += 1
         avg = (hits / total) * 100
         print("Total: {} - Acertos: {} - Erros: {} - Acuracia: {}".format(str(total),str(hits),str(errors), str(avg)))
-
+        cnf_matrix = confusion_matrix(image_paths,predictions)
+        #for i in len(cnf_matrix)
+        print(cnf_matrix.shape)
+        print(cnf_matrix)
+        numpy.savetxt(args.confusionMatrixName + ".csv", cnf_matrix, delimiter=";", fmt="%10.f")
     print("--- %s seconds ---" % (time.time() - start_time))
