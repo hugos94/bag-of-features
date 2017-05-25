@@ -100,16 +100,11 @@ if __name__ == "__main__":
     im_features = numpy.zeros((len(image_paths), k), "float32")
     i = 0
     for feature in features:
-        for image_path, descriptor in feature:
+        for _ , descriptor in feature:
             words, _ = vq(descriptor, voc)
             for w in words:
                 im_features[i][w] +=1
             i += 1
-
-    # Perform Tf-Idf vectorization
-    log.info("Perform Tf-Idf vectorization")
-    nbr_ocurrences = numpy.sum( (im_features > 0) * 1, axis = 0)
-    idf = numpy.array(numpy.log((1.0*len(image_paths)+1) / (1.0*nbr_ocurrences + 1)), 'float32')
 
     # Scaling the words
     log.info("Scaling the words")

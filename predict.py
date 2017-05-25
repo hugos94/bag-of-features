@@ -60,8 +60,6 @@ if __name__ == "__main__":
         image_paths = [args.image]
 
     # Create feature extraction and keypoint detector objects
-    #fea_det = cv2.FeatureDetector_create("SIFT")
-    #des_ext = cv2.DescriptorExtractor_create("SIFT")
     cpus = os.cpu_count()
     path_size = len(image_paths)
     path_lists_size = int(len(image_paths)/cpus)
@@ -82,10 +80,6 @@ if __name__ == "__main__":
             for w in words:
                 test_features[i][w] +=1
             i += 1
-
-    # Perform Tf-Idf vectorization
-    nbr_occurences = numpy.sum( (test_features > 0) * 1, axis = 0)
-    idf = numpy.array(numpy.log((1.0*len(image_paths)+1) / (1.0*nbr_occurences + 1)), 'float32')
 
     # Scale the features
     test_features = stdSlr.transform(test_features)
