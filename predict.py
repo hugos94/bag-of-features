@@ -73,9 +73,6 @@ if __name__ == "__main__":
 
     features = pool.map(detectAndCompute, (image_paths_parts))
 
-    # Stack all the descriptors vertically in a numpy array
-    descriptors = stack_descriptors(features)
-
     print("Criando codebook")
     test_features = numpy.zeros((len(image_paths), k), "float32")
     i = 0
