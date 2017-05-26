@@ -74,9 +74,8 @@ if __name__ == "__main__":
 
     cpus = os.cpu_count()
     path_size = len(image_paths)
-    path_lists_size = int(len(image_paths)/cpus)
+    path_lists_size = int(numpy.ceil(len(image_paths)/cpus))
     log.info("Dividing feature extraction between {} cpus".format(cpus))
-
     image_paths_parts = [image_paths[i:i + path_lists_size] for i in range(0, path_size, path_lists_size)]
 
     # Create feature extraction and keypoint detector objects
