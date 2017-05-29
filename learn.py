@@ -7,21 +7,20 @@ from scipy.cluster.vq import *
 from sklearn.preprocessing import StandardScaler
 
 def detectAndCompute(image_paths):
-    des_list = []
-    sift = cv2.xfeatures2d.SIFT_create()
+    # Detect, compute and return all features found on images
+    descriptions = []
+    descriptor = cv2.xfeatures2d.SIFT_create()
     for image_path in image_paths:
-        im = cv2.imread(image_path)
-        (_, des) = sift.detectAndCompute(im, None)
-        des_list.append((image_path,des))
-    return des_list
+        image = cv2.imread(image_path)
+        (_, des) = descriptor.detectAndCompute(image, None)
+        descriptions.append((image_path,des))
+    return descriptions
 
 def stack_descriptors(features):
     # Stack all the descriptors vertically in a numpy array
-    log.info("Stack all the descriptors vertically in a numpy array")
-    descriptors = features[0].pop(0)[1]
-    for feature in features:
-        for _, descriptor in feature:
-            descriptors = numpy.concatenate((descriptors, descriptor), axis=0)
+    descriptors = features.pop(0)[1]
+    for _, descriptor in features:
+        descriptors = numpy.concatenate((descriptors, descriptor), axis=0)
     return descriptors
 
 def get_args():
@@ -77,12 +76,16 @@ if __name__ == "__main__":
     features = pool.map(detectAndCompute, (image_paths_parts))
 
     # Stack all the descriptors vertically in a numpy array
-    descriptors = stack_descriptors(features)
+    log.info("Stack all the descriptors vertically in a numpy array")
+    descriptors = pool.map(stack_descriptors, (features))
+    descriptors_result = descriptors.pop(0)
+    for descriptor in descriptors:
+        descriptors_result = numpy.concatenate((descriptors_result, descriptor), axis=0)
 
     # Perform k-means clustering
     log.info("Perform k-means clustering")
     k = 100
-    voc, _ = kmeans(descriptors, k, 1)
+    voc, _ = kmeans(descriptors_result, k, 1)
 
     # Calculate the histogram of features
     log.info("Calculate the histogram of features")
