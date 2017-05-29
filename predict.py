@@ -103,6 +103,34 @@ if __name__ == "__main__":
     log.info("Performing predictions")
     predictions =  [classes_names[i] for i in clf.predict(test_features)]
 
+    # Stopping counting execution time
+    log.info("Stopping counting execution time")
+    log.info("--- %s seconds ---" % (time.time() - start_time))
+
+    # Calculating overall accuracy
+    log.info("Calculating overall accuracy")
+    total = 0
+    hits = 0
+    errors = 0
+
+    # Getting only image class
+    for i in range(set_size):
+        image_paths[i] = image_paths[i].split('/')[3]
+
+    for classe, prediction in zip(image_paths, predictions):
+        total += 1
+        if prediction == classe:
+            hits += 1
+        else:
+            errors += 1
+    avg = (hits / total) * 100
+    print("Total: {} - Acertos: {} - Erros: {} - Acuracia: {}".format(str(total),str(hits),str(errors), str(avg)))
+    cnf_matrix = confusion_matrix(image_paths,predictions)
+    #for i in len(cnf_matrix)
+    print(cnf_matrix.shape)
+    print(cnf_matrix)
+    numpy.savetxt(args.confusionMatrixName + ".csv", cnf_matrix, delimiter=";", fmt="%10.f")
+
     # Show the results, if "show" flag set to true by the user
     if args.show:
         for image_path, prediction in zip(image_paths, predictions):
@@ -112,25 +140,3 @@ if __name__ == "__main__":
             cv2.putText(image, prediction, pt ,cv2.FONT_HERSHEY_SCRIPT_COMPLEX, 2, [0, 255, 0], 2)
             cv2.imshow("Image", image)
             cv2.waitKey(3000)
-    else:
-        print("Calculando Acurácia...")
-        total = 0
-        hits = 0
-        errors = 0
-        for i in range(set_size):
-            image_paths[i] = image_paths[i].split('/')[3]
-
-        for classe, prediction in zip(image_paths, predictions):
-            total += 1
-            if prediction == classe:
-                hits += 1
-            else:
-                errors += 1
-        avg = (hits / total) * 100
-        print("Total: {} - Acertos: {} - Erros: {} - Acuracia: {}".format(str(total),str(hits),str(errors), str(avg)))
-        cnf_matrix = confusion_matrix(image_paths,predictions)
-        #for i in len(cnf_matrix)
-        print(cnf_matrix.shape)
-        print(cnf_matrix)
-        numpy.savetxt(args.confusionMatrixName + ".csv", cnf_matrix, delimiter=";", fmt="%10.f")
-    print("--- %s seconds ---" % (time.time() - start_time))
