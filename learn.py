@@ -1,19 +1,10 @@
-import cv2, os, time, imutils, argparse, numpy
+import os, cv2, time, numpy, imutils, argparse
 import logging as log
 from multiprocessing import Pool
 from sklearn.svm import LinearSVC
 from sklearn.externals import joblib
 from scipy.cluster.vq import *
 from sklearn.preprocessing import StandardScaler
-
-def timing(f):
-    def wrap(*args):
-        time1 = time.time()
-        ret = f(*args)
-        time2 = time.time()
-        print ("{} function took {} ms".format(f.__name__, (time2-time1)*1000.0))
-        return ret
-    return wrap
 
 def detectAndCompute(image_paths):
     des_list = []
@@ -47,7 +38,6 @@ if __name__ == "__main__":
 
     if args.verbose:
         log.basicConfig(format="%(levelname)s: %(message)s", level=log.DEBUG)
-        log.info("Verbose output.")
     else:
         log.basicConfig(format="%(levelname)s: %(message)s")
 

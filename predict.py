@@ -1,4 +1,5 @@
-import argparse, cv2, imutils, os, time, numpy
+import os, cv2, time, numpy, imutils, argparse
+import logging as log
 from multiprocessing import Pool
 from sklearn.svm import LinearSVC
 from sklearn.externals import joblib
@@ -13,7 +14,8 @@ def get_args():
     group.add_argument("-i", "--image", help="Path to image")
     parser.add_argument("-c", "--classifierModelFile", help="Classifier Model File", required="True")
     parser.add_argument("-m", "--confusionMatrixName", help="Confusion Matrix Name", required="True")
-    parser.add_argument('-v',"--visualize", action='store_true')
+    parser.add_argument('-s',"--show", action='store_true')
+    parser.add_argument("-v", "--verbose", help="Increase output verbosity", action="store_true")
     return parser.parse_args()
 
 def detectAndCompute(image_paths):
@@ -35,22 +37,30 @@ def stack_descriptors(features):
     return descriptors
 
 if __name__ == "__main__":
-    start_time = time.time()
 
     args = get_args()
 
+    if args.verbose:
+        log.basicConfig(format="%(levelname)s: %(message)s", level=log.DEBUG)
+    else:
+        log.basicConfig(format="%(levelname)s: %(message)s")
+
+    log.info("Algorithm execution time count started")
+    start_time = time.time()
+
     # Load the classifier, class names, scaler, number of clusters and vocabulary
+    log.info("Loading classifier, class names, scaler, number of cluster and vocabulary")
     clf, classes_names, stdSlr, k, voc = joblib.load(args.classifierModelFile + ".pkl")
 
     # Get the path of the testing image(s) and store them in a list
-    print("Carregando imagens")
+    log.info("Loading images")
     image_paths = []
     if args.testingSet:
         test_path = args.testingSet
         try:
             testing_names = os.listdir(test_path)
         except OSError:
-            print ("No such directory \(test_path)\nCheck if the file exists")
+            log.error("No such directory \(test_path)\nCheck if the file exists")
             exit()
         for testing_name in testing_names:
             dir = os.path.join(test_path, testing_name)
@@ -62,8 +72,8 @@ if __name__ == "__main__":
     # Create feature extraction and keypoint detector objects
     cpus = os.cpu_count()
     path_size = len(image_paths)
-    path_lists_size = int(len(image_paths)/cpus)
-    print("Dividing feature extraction between {} cpus".format(cpus))
+    path_lists_size = int(numpy.ceil(len(image_paths)/cpus))
+    log.info("Dividing feature extraction between {} cpus".format(cpus))
 
     image_paths_parts = [image_paths[i:i + path_lists_size] for i in range(0, path_size, path_lists_size)]
 
@@ -88,8 +98,8 @@ if __name__ == "__main__":
     print("Realizando predições")
     predictions =  [classes_names[i] for i in clf.predict(test_features)]
 
-    # Visualize the results, if "visualize" flag set to true by the user
-    if args.visualize:
+    # Show the results, if "show" flag set to true by the user
+    if args.show:
         for image_path, prediction in zip(image_paths, predictions):
             image = cv2.imread(image_path)
             cv2.namedWindow("Image", cv2.WINDOW_NORMAL)
