@@ -3,7 +3,7 @@ import logging as log
 from multiprocessing import Pool
 from sklearn.svm import LinearSVC
 from sklearn.externals import joblib
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import accuracy_score,classification_report,cohen_kappa_score,confusion_matrix
 from scipy.cluster.vq import *
 
 def get_args():
@@ -12,8 +12,8 @@ def get_args():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("-t", "--testingSetPath", help="Path to testing Set")
     group.add_argument("-i", "--image", help="Path to image")
-    parser.add_argument("-c", "--classifierModelFile", help="Classifier Model File", required="True")
-    parser.add_argument("-m", "--confusionMatrixName", help="Confusion Matrix Name", required="True")
+    parser.add_argument("-m", "--classifierModelFile", help="Classifier Model File", required="True")
+    parser.add_argument("-r", "--results", help="Results File Name", required="True")
     parser.add_argument('-s',"--show", action='store_true')
     parser.add_argument("-v", "--verbose", help="Increase output verbosity", action="store_true")
     return parser.parse_args()
@@ -46,7 +46,6 @@ if __name__ == "__main__":
     # Load the classifier, class names, scaler, number of clusters and vocabulary
     log.info("Loading classifier, class names, scaler, number of cluster and vocabulary")
     clf, classes_names, stdSlr, k, voc = joblib.load(args.classifierModelFile + ".pkl")
-
     # Get the path of the testing image(s) and store them in a list
     log.info("Loading images")
     image_paths = []
@@ -105,31 +104,34 @@ if __name__ == "__main__":
 
     # Stopping counting execution time
     log.info("Stopping counting execution time")
-    log.info("--- %s seconds ---" % (time.time() - start_time))
-
-    # Calculating overall accuracy
-    log.info("Calculating overall accuracy")
-    total = 0
-    hits = 0
-    errors = 0
+    log.info("---Time: %s seconds ---" % (time.time() - start_time))
 
     # Getting only image class
     for i in range(set_size):
         image_paths[i] = image_paths[i].split('/')[3]
 
-    for classe, prediction in zip(image_paths, predictions):
-        total += 1
-        if prediction == classe:
-            hits += 1
-        else:
-            errors += 1
-    avg = (hits / total) * 100
-    print("Total: {} - Acertos: {} - Erros: {} - Acuracia: {}".format(str(total),str(hits),str(errors), str(avg)))
+    # Calculating metrics
+    log.info("Calculating metrics")
+    accuracy = accuracy_score(image_paths,predictions)
+    report = classification_report(image_paths,predictions)
+    cohen_kappa = cohen_kappa_score(image_paths,predictions)
     cnf_matrix = confusion_matrix(image_paths,predictions)
-    #for i in len(cnf_matrix)
-    print(cnf_matrix.shape)
-    print(cnf_matrix)
-    numpy.savetxt(args.confusionMatrixName + ".csv", cnf_matrix, delimiter=";", fmt="%10.f")
+
+    log.info("\nAccuracy: {}".format(accuracy))
+    log.info("Cohen Kappa Score: {}\n".format(cohen_kappa))
+    log.info("Report: {}".format(report))
+
+    # Saving metrics
+    log.info("Saving metrics")
+
+    classes_labels = ""
+    for label in classes_names:
+        classes_labels += label + ";"
+    numpy.savetxt(args.results + "_confusion_matrix.csv", cnf_matrix, delimiter=";", fmt="%10.f", header=classes_labels)
+
+    accuracy_and_kappa = "Accuracy: {};Cohen Kappa Score: {}".format(accuracy,cohen_kappa)
+    report_splitted = [report_line.split() for report_line in report.splitlines()]
+    numpy.savetxt(args.results + "_report.csv", report_splitted, delimiter=';', fmt="%s", header=accuracy_and_kappa)
 
     # Show the results, if "show" flag set to true by the user
     if args.show:

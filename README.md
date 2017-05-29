@@ -8,9 +8,10 @@ This is a clean fork of [bikz05's](https://github.com/bikz05/bag-of-words) work.
 ## Installation
 
 Dependencies:
-* numpy
-* sklearn
-* scipy
+* Python (>= 3.3)
+* Numpy (>= 1.6.1)
+* Scipy (>= 0.9)
+* Scikit Learn
 
 ### Note
 I am using OpenCV3 and a number of things have been moved to the [opencv_contrib](https://github.com/Itseez/opencv_contrib/) repo.
@@ -28,7 +29,7 @@ python predict.py -t dataset/test/class/image.extension --show
 
 * Testing a testing dataset
 ```
-python predict.py -t ../dataset/test/ -c ../dataset/model -m ../dataset/confusion --verbose
+python predict.py -t ../dataset/test/ -m ../dataset/model -r ../dataset/results --verbose
 
 ```
 The `--visualize` flag will display the image with the corresponding label printed on the image/
