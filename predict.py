@@ -7,10 +7,10 @@ from sklearn.metrics import confusion_matrix
 from scipy.cluster.vq import *
 
 def get_args():
-    # Get the path of the testing set
+    # Set and get script arguments
     parser = argparse.ArgumentParser()
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("-t", "--testingSet", help="Path to testing Set")
+    group.add_argument("-t", "--testingSetPath", help="Path to testing Set")
     group.add_argument("-i", "--image", help="Path to image")
     parser.add_argument("-c", "--classifierModelFile", help="Classifier Model File", required="True")
     parser.add_argument("-m", "--confusionMatrixName", help="Confusion Matrix Name", required="True")
@@ -19,33 +19,28 @@ def get_args():
     return parser.parse_args()
 
 def detectAndCompute(image_paths):
-    des_list = []
-    sift = cv2.xfeatures2d.SIFT_create()
+    # Detect, compute and return all features found on images
+    descriptions = []
+    descriptor = cv2.xfeatures2d.SIFT_create()
     for image_path in image_paths:
-        im = cv2.imread(image_path)
-        (_, des) = sift.detectAndCompute(im, None)
-        des_list.append((image_path,des))
-    return des_list
-
-def stack_descriptors(features):
-    # Stack all the descriptors vertically in a numpy array
-    #log.info("Stack all the descriptors vertically in a numpy array")
-    descriptors = features[0].pop(0)[1]
-    for feature in features:
-        for _, descriptor in feature:
-            descriptors = numpy.concatenate((descriptors, descriptor), axis=0)
-    return descriptors
+        image = cv2.imread(image_path)
+        (_, des) = descriptor.detectAndCompute(image, None)
+        descriptions.append((image_path,des))
+    return descriptions
 
 if __name__ == "__main__":
 
+    # Get arguments
     args = get_args()
 
+    # If verbose argument is provided, allow logs to be printed
     if args.verbose:
         log.basicConfig(format="%(levelname)s: %(message)s", level=log.DEBUG)
     else:
         log.basicConfig(format="%(levelname)s: %(message)s")
 
-    log.info("Algorithm execution time count started")
+    # Start counting execution time
+    log.info("Starting counting execution time")
     start_time = time.time()
 
     # Load the classifier, class names, scaler, number of clusters and vocabulary
@@ -55,47 +50,57 @@ if __name__ == "__main__":
     # Get the path of the testing image(s) and store them in a list
     log.info("Loading images")
     image_paths = []
-    if args.testingSet:
-        test_path = args.testingSet
+    if args.testingSetPath:
         try:
-            testing_names = os.listdir(test_path)
+            testing_names = os.listdir(args.testingSetPath)
         except OSError:
-            log.error("No such directory \(test_path)\nCheck if the file exists")
+            log.error("No such directory {}. Check if the directory exists".format(args.testingSetPath))
             exit()
         for testing_name in testing_names:
-            dir = os.path.join(test_path, testing_name)
-            class_path = imutils.imlist(dir)
+            directory_name = os.path.join(args.testingSetPath, testing_name)
+            class_path = imutils.imlist(directory_name)
             image_paths+=class_path
     else:
         image_paths = [args.image]
 
-    # Create feature extraction and keypoint detector objects
+    # Get the amount of cpus
     cpus = os.cpu_count()
-    path_size = len(image_paths)
-    path_lists_size = int(numpy.ceil(len(image_paths)/cpus))
-    log.info("Dividing feature extraction between {} cpus".format(cpus))
 
-    image_paths_parts = [image_paths[i:i + path_lists_size] for i in range(0, path_size, path_lists_size)]
+    # Take the set size
+    set_size = len(image_paths)
 
+    # Calculates the number of subsets required for the quantity of cpus
+    subset_size = int(numpy.ceil(set_size/cpus))
+
+    # Divide the set into subsets according to the quantity of cpus
+    log.info("Dividing feature detection and extraction between {} processes".format(cpus))
+    image_paths_parts = [image_paths[i:i + subset_size] for i in range(0, set_size, subset_size)]
+
+    # Create feature extraction and keypoint detector objects
+    log.info("Create feature extraction and keypoint detector objects")
     pool = Pool(processes=cpus)
 
+    # Detecting points and extracting features
+    log.info("Detecting points and extracting features")
     features = pool.map(detectAndCompute, (image_paths_parts))
 
-    print("Criando codebook")
-    test_features = numpy.zeros((len(image_paths), k), "float32")
+    # Creating codebook
+    log.info("Creating codebook")
+    test_features = numpy.zeros((set_size, k), "float32")
     i = 0
     for feature in features:
-        for image_path, descriptor in feature:
+        for _ , descriptor in feature:
             words, _ = vq(descriptor, voc)
             for w in words:
                 test_features[i][w] +=1
             i += 1
 
-    # Scale the features
+    # Scaling the words
+    log.info("Scaling words")
     test_features = stdSlr.transform(test_features)
 
-    # Perform the predictions
-    print("Realizando predições")
+    # Performing the predictions
+    log.info("Performing predictions")
     predictions =  [classes_names[i] for i in clf.predict(test_features)]
 
     # Show the results, if "show" flag set to true by the user
@@ -112,7 +117,7 @@ if __name__ == "__main__":
         total = 0
         hits = 0
         errors = 0
-        for i in range(len(image_paths)):
+        for i in range(set_size):
             image_paths[i] = image_paths[i].split('/')[3]
 
         for classe, prediction in zip(image_paths, predictions):
