@@ -23,12 +23,12 @@ python learn.py -t dataset/train -c dataset/model
 ## Testing the Classifier
 * Testing a single image
 ```
-python predict.py -t dataset/test/class/image.extension --visualize
+python predict.py -t dataset/test/class/image.extension --show
 ```
 
 * Testing a testing dataset
 ```
-python predict.py -t ../dataset/test/ -c ../dataset/model -m ../dataset/confusion
+python predict.py -t ../dataset/test/ -c ../dataset/model -m ../dataset/confusion --verbose
 
 ```
 The `--visualize` flag will display the image with the corresponding label printed on the image/
