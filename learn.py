@@ -17,11 +17,13 @@ def get_args():
 def detectAndCompute(image_paths):
     # Detect, compute and return all features found on images
     descriptions = []
-    descriptor = cv2.xfeatures2d.SIFT_create()
+    keypoint_detector = cv2.xfeatures2d.SIFT_create()
+    keypoint_descriptor = cv2.xfeatures2d.SIFT_create()
     for image_path in image_paths:
         image = cv2.imread(image_path)
-        (_, des) = descriptor.detectAndCompute(image, None)
-        descriptions.append((image_path,des))
+        keypoints = keypoint_detector.detect(image, None)
+        (keypoints, description) = keypoint_descriptor.compute(image, keypoints)
+        descriptions.append((image_path,description))
     return descriptions
 
 def stack_descriptors(features):

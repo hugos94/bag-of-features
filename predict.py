@@ -21,11 +21,13 @@ def get_args():
 def detectAndCompute(image_paths):
     # Detect, compute and return all features found on images
     descriptions = []
-    descriptor = cv2.xfeatures2d.SIFT_create()
+    keypoint_detector = cv2.xfeatures2d.SIFT_create()
+    keypoint_descriptor = cv2.xfeatures2d.SIFT_create()
     for image_path in image_paths:
         image = cv2.imread(image_path)
-        (_, des) = descriptor.detectAndCompute(image, None)
-        descriptions.append((image_path,des))
+        keypoints = keypoint_detector.detect(image, None)
+        (keypoints, description) = keypoint_descriptor.compute(image, keypoints)
+        descriptions.append((image_path,description))
     return descriptions
 
 if __name__ == "__main__":
@@ -108,7 +110,10 @@ if __name__ == "__main__":
 
     # Getting only image class
     for i in range(set_size):
-        image_paths[i] = image_paths[i].split('/')[3]
+        print(image_paths[i])
+        image_paths[i] = image_paths[i].split('/')[-2]
+        print(image_paths[i])
+        exit(1)
 
     # Calculating metrics
     log.info("Calculating metrics")
