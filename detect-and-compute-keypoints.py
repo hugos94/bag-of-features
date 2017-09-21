@@ -1,4 +1,5 @@
 import os, cv2, argparse, imutils, numpy
+import logging as log
 from multiprocessing import Pool
 from sklearn.externals import joblib
 
@@ -7,6 +8,7 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-t", "--imageSetPath", help="Path to Image Set", required="True")
     parser.add_argument("-f", "--featuresPath", help="Path to Persist Features Extracted", required=True)
+    parser.add_argument("-v", "--verbose", help="Increase output verbosity", action="store_true")
     return parser.parse_args()
 
 def stack_descriptors(features):
@@ -33,17 +35,25 @@ if __name__ == "__main__":
     # Get arguments
     args = get_args()
 
+    # If verbose argument is provided, allow logs to be printed
+    if args.verbose:
+        log.basicConfig(format="%(levelname)s: %(message)s", level=log.DEBUG)
+    else:
+        log.basicConfig(format="%(levelname)s: %(message)s")
+
+    # Get the training classes names and store them in a list
+    log.info("Getting training classes names and store them in a list")
     try:
         images_names = os.listdir(args.imageSetPath)
     except OSError:
-        print("No such directory {}. Check if the directory exists".format(args.imageSetPath))
+        log.error("No such directory {}. Check if the directory exists".format(args.imageSetPath))
         exit()
 
     if not os.path.isdir(args.featuresPath):
         try:
             os.makedirs(args.featuresPath)
         except OSError:
-            print("Can't create a folder on " + args.featuresPath)
+            log.error("Can't create a folder on " + args.featuresPath)
             exit()
 
     images_paths = []
@@ -67,7 +77,7 @@ if __name__ == "__main__":
     subset_size = int(numpy.ceil(set_size/cpus))
 
     # Divide the set into subsets according to the quantity of cpus
-    # print("Dividing feature detection and extraction between {} processes".format(cpus))
+    log.info("Dividing feature detection and extraction between {} processes".format(cpus))
     images_paths_parts = [images_paths[i:i + subset_size] for i in range(0, set_size, subset_size)]
 
     # Descriptors declaration
@@ -111,22 +121,22 @@ if __name__ == "__main__":
                 print("SURF")
 
             # Create feature extraction and keypoint detector objects
-            # print("Create feature extraction and keypoint detector objects")
+            log.info("Create feature extraction and keypoint detector objects")
             pool = Pool(processes=cpus)
 
             # Detecting points and extracting features
-            # print("Detecting points and extracting features")
+            log.info("Detecting points and extracting features")
             keypoints_descriptions = pool.map(detect_and_compute_keypoints, (images_paths_parts))
 
             # Stack all the descriptors vertically in a numpy array using Pool
-            # print("Stack all descriptors vertically in a numpy array")
+            log.info("Stack all descriptors vertically in a numpy array")
             descriptors = pool.map(stack_descriptors, (keypoints_descriptions))
             descriptors_result = descriptors.pop(0)
             for descriptor in descriptors:
                 descriptors_result = numpy.concatenate((descriptors_result, descriptor), axis=0)
 
             # Save the SVM
-            # print("Saving descriptions")
+            log.info("Saving descriptions")
             features_path = args.featuresPath+detector_name+descriptor_name+".pkl"
             joblib.dump((descriptors_result),features_path, compress = 0)
 
